@@ -1,0 +1,116 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install make imagemagick ttf-dejavu
+
+      - name: Docker run
+        run: |
+          docker run -dit --user=$UID:$(id -g $USER) --name s805build -v $PWD:/uboot 225886/s805ubootbuild:tagname
+
+      - name: Build
+        run: |
+          docker exec s805build build-image
+
+      - name: Download AmlImg
+        run: |
+          ver="v0.3.0"
+          curl -L -o ./AmlImg https://github.com/hzyitc/AmlImg/releases/download/$ver/AmlImg_${ver}_linux_amd64
+          chmod +x ./AmlImg
+
+      - name: Generate logo
+        run: |
+          mkdir -p logo
+
+          convert \
+            -size 640x360 \
+            -background black \
+            -gravity center -font "DejaVu-Sans" -pointsize 64 -fill white label:"U-Boot" \
+            BMP3:logo/bootup.bmp
+
+          cat <<EOF >logo/list.txt
+          090000:bootup:bootup.bmp
+          EOF
+          ./AmlImg res_pack build/logo.img logo/
+
+
+      - name: Generate eMMC burn image
+        run: |
+          mkdir -p pack
+
+          cp build/ddr_init.bin pack/DDR.USB
+          cp build/u-boot-comp.bin pack/UBOOT_COMP.USB
+
+          cat <<EOF >pack/aml_sdc_burn.ini
+          [common]
+          erase_bootloader    = 1
+          erase_flash         = 0
+          reboot              = 0
+
+          ;package will filled by sdacard burning tool
+          [burn_ex]
+          package     = aml_upgrade_package.img
+          ;media       =
+          EOF
+
+          cat <<EOF >pack/platform.conf
+          Platform:0x0801
+          BinPara:0xd9010000
+          DDRLoad:0xd9000000
+          DDRRun:0xd9000030
+          Uboot_down:0x200000
+          Uboot_decomp:0xd9000030
+          EOF
+
+          cp build/u-boot.bin pack/bootloader.img
+          echo -n "sha1sum $(sha1sum pack/bootloader.img | awk '{print $1}')" >pack/bootloader.VERIFY
+
+          cp build/logo.img pack/logo.img
+          echo -n "sha1sum $(sha1sum pack/logo.img | awk '{print $1}')" >pack/logo.VERIFY
+
+          cat <<EOF >pack/commands.txt
+          USB:DDR:normal:DDR.USB
+          USB:UBOOT_COMP:normal:UBOOT_COMP.USB
+
+          ini:aml_sdc_burn:normal:aml_sdc_burn.ini
+          conf:platform:normal:platform.conf
+
+          PARTITION:bootloader:normal:bootloader.img
+          VERIFY:bootloader:normal:bootloader.VERIFY
+
+          PARTITION:logo:normal:logo.img
+          VERIFY:logo:normal:logo.VERIFY
+
+          # PARTITION:boot:normal:boot.img
+          # VERIFY:boot:normal:boot.VERIFY
+          # PARTITION:rootfs:normal:rootfs.img
+          # VERIFY:rootfs:normal:rootfs.VERIFY
+          EOF
+
+          ./AmlImg pack build/eMMC.burn.img pack/
+
+      - name: Install hub
+        uses: geertvdc/setup-hub@master
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          path: |
+            build/*.bin
+            build/logo.img
+            build/eMMC.burn.img
+
+ 
