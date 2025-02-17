@@ -14,20 +14,21 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install make imagemagick fonts-dejavu zlib1g zlib1g-dev
+          sudo apt install imagemagick fonts-dejavu
 
-      - name: Download toolchain
+      - name: Docker run
         run: |
-          curl -L -O https://redirect.armbian.com/_toolchain/gcc-linaro-arm-none-eabi-4.8-2014.04_linux.tar.xz
-          tar xvf ./gcc-linaro-arm-none-eabi-4.8-2014.04_linux.tar.xz
+          docker run -dit --user=$UID:$(id -g $USER) --name s805build -v $PWD:/uboot 225886/s80ubootonecloudbuild:tagname
 
       - name: Build
         run: |
-          export PATH="$PATH:$(pwd)/gcc-linaro-arm-none-eabi-4.8-2014.04_linux/bin"
+          docker exec s805build build-image
 
-          make distclean
-          make m8b_onecloud_config
-          make -j$(nproc)
+      - name: Download AmlImg
+        run: |
+          ver="v0.3.0"
+          curl -L -o ./AmlImg https://github.com/hzyitc/AmlImg/releases/download/$ver/AmlImg_${ver}_linux_amd64
+          chmod +x ./AmlImg
 
       - name: Download AmlImg
         run: |
