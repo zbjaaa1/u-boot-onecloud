@@ -201,7 +201,6 @@
 	"preloaddtb=imgread dtb boot ${loadaddr}\0" \
 	"cvbs_drv=0\0"\
 	"preboot="\
-	"run usb_burning; "\
         "run test_facreset;"\
         "if itest ${upgrade_step} == 3; then run prepare; run storeargs; run update; fi; "\
         "if itest ${upgrade_step} == 1; then  "\
@@ -505,3 +504,4 @@
 
 
 #endif //__CONFIG_M8B_M201_V1_H__
+
