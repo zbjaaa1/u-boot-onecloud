@@ -1,10 +1,10 @@
 
 #ifdef CONFIG_IR_REMOTE_WAKEUP
 
-#define IR_POWER_KEY    0x23dcdd22
+#define IR_POWER_KEY    0xe51afb04
 #define IR_POWER_KEY_MASK 0xffffffff
 unsigned int kk[] = {
-        0x23dcdd22,
+        0xe51afb04,
 };
 #define IR_CONTROL_HOLD_LAST_KEY   (1<<6)
 typedef struct reg_remote
@@ -200,3 +200,4 @@ int remote_detect_key(){
     return 0;
 }
 #endif
+
